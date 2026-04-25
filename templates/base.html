@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Preference &amp; recommendation lab{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="{{ url_for('home') }}">E‑commerce preference lab</a>
+      <p class="tagline">Decision tree + genetic algorithm — course homework demo</p>
+    </div>
+  </header>
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash-list" role="status">
+          {% for cat, msg in messages %}
+            <li class="flash flash-{{ cat }}">{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    {% block body %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <p>Aligned with the paper idea: combine a decision‑tree behaviour score with a GA‑optimized blend of catalogue and interaction signals (Deshmukh et al., <em>Multidiscip. Sci. J.</em>, 2025).</p>
+  </footer>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

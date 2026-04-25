@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Home — Preference lab{% endblock %}
+{% block body %}
+
+<section class="card card-hero">
+  <p class="eyebrow">What this app does</p>
+  <h1>Learn preference weights from your store data</h1>
+  <p class="lead">
+    The pipeline follows the research direction you selected: first a <strong>decision tree</strong>
+    predicts an engagement‑style target from simple customer and product fields; then a
+    <strong>genetic algorithm (GA)</strong> learns how strongly each engineered signal (including the tree output)
+    should contribute to a single ranking score. Those learned weights are your <em>interpretable preference profile</em>
+    for the report, alongside tables and charts below.
+  </p>
+  <ol class="steps">
+    <li><span class="step-num">1</span> Load the official <strong>HW__Data_S25</strong> Excel bundle (users, products, ratings, behaviour).</li>
+    <li><span class="step-num">2</span> Split rows into train / validation; build train‑only aggregates so validation scores stay honest.</li>
+    <li><span class="step-num">3</span> Train the tree, run the GA on validation error, then inspect metrics, chart, and tree rules.</li>
+    <li><span class="step-num">4</span> Open any user to see the same global weights applied to a personalised catalogue ranking (prices in <strong>€</strong>).</li>
+  </ol>
+</section>
+
+<section class="card">
+  <h2 class="section-title">Dataset status</h2>
+  {% if error %}
+    <div class="error-box">
+      <strong>Cannot load data.</strong> {{ error }}
+    </div>
+    <p class="hint">Copy the four <code>.xlsx</code> files into <code>data/HW__Data_S25/</code>. See <code>HW_DATA_README.txt</code> for the exact column names.</p>
+  {% elif not data_ready %}
+    <p class="muted">No rows remain after merging keys — check duplicates and missing keys in the spreadsheets.</p>
+  {% else %}
+    <div class="status-ok">
+      <span class="status-dot" aria-hidden="true"></span>
+      <div>
+        <strong>Ready.</strong> {{ users|length }} user profile(s) found; interaction rows are loaded and merged on <code>(user_id, product_id)</code>.
+      </div>
+    </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2 class="section-title">Train the model</h2>
+  <p class="hint">Uses fixed hyperparameters from <code>recsys_hw/config.py</code> (population size, generations, mutation, etc.) so your run matches what you document.</p>
+  <form class="row-form" method="post" action="{{ url_for('optimize') }}">
+    <label class="field-label">Random seed <span class="optional">(optional)</span>
+      <input type="number" name="seed" placeholder="42" step="1" title="Same seed → same split and GA randomness for reproducibility">
+    </label>
+    <button type="submit" class="btn primary" {% if not data_ready %}disabled{% endif %}>Train decision tree + run GA</button>
+  </form>
+
+  {% if snapshot %}
+    <div class="run-meta">
+      <span class="pill">Seed {{ snapshot.seed }}</span>
+      <span class="pill">Population {{ snapshot.population_size }}</span>
+      <span class="pill">Generations {{ snapshot.generations }}</span>
+    </div>
+
+    <h3 class="subsection-title">Validation error (lower is better)</h3>
+    <p class="hint">Mean squared error (MSE) on held‑out rows. Compare GA blend to simple baselines.</p>
+    <div class="stat-grid">
+      <div class="stat-card stat-card-highlight">
+        <span class="stat-label">GA blend</span>
+        <span class="stat-value">{{ "%.6f"|format(snapshot.best_mse_ga) }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Baseline: train mean</span>
+        <span class="stat-value">{{ "%.6f"|format(snapshot.mse_baseline_mean) }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Baseline: tree only</span>
+        <span class="stat-value">{{ "%.6f"|format(snapshot.mse_baseline_dt_only) }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Baseline: uniform weights</span>
+        <span class="stat-value">{{ "%.6f"|format(snapshot.mse_baseline_uniform) }}</span>
+      </div>
+    </div>
+    <p class="api-link"><a href="{{ url_for('api_preferences') }}">Export JSON — <code>/api/preferences</code></a> for your write‑up or slides.</p>
+
+    {% if chart_spec %}
+    <div class="viz-block">
+      <h3 class="subsection-title">GA weight profile</h3>
+      <p class="hint">Each bar is one feature dimension the GA mixes (weights sum to 1). Longer bar → stronger influence on the ranking score.</p>
+      <div class="chart-shell"><canvas id="weightsChartHome" height="220" aria-label="Horizontal bar chart of GA weights"></canvas></div>
+    </div>
+    {% endif %}
+
+    {% if dt_tree %}
+    <div class="viz-block">
+      <h3 class="subsection-title">Decision tree rules (text)</h3>
+      <p class="hint">Regression tree on <code>age</code>, <code>price</code>, and an encoded <code>category</code> code. Leaves show predicted engagement scores in <code>[0, 1]</code>. This block is left‑to‑read for ASCII alignment.</p>
+      <pre class="tree-pre" dir="ltr">{{ dt_tree }}</pre>
+    </div>
+    {% endif %}
+  {% elif data_ready %}
+    <p class="muted">Press the button above to materialise weights, charts, and tree text.</p>
+  {% endif %}
+</section>
+
+{% if data_ready %}
+<section class="card">
+  <h2 class="section-title">Users</h2>
+  <p class="hint">Pick a user to open the recommendation list (top catalogue items by the learned score).</p>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>Age</th>
+          <th>Location</th>
+          <th>Interactions</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><code>{{ u.user_id }}</code></td>
+          <td>{{ u.age }}</td>
+          <td>{{ u.location }}</td>
+          <td>{{ u.n_interactions }}</td>
+          <td><a class="btn small" href="{{ url_for('user_page', user_id=u.user_id) }}">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+{% if chart_spec %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script>
+(function () {
+  var spec = {{ chart_spec|tojson }};
+  var el = document.getElementById('weightsChartHome');
+  if (!el || !spec || !spec.labels || !spec.values) return;
+  var colors = spec.labels.map(function (_, i) {
+    return 'hsl(' + ((i * 47) % 360) + ', 48%, 52%)';
+  });
+  new Chart(el, {
+    type: 'bar',
+    data: {
+      labels: spec.labels,
+      datasets: [{
+        label: 'Weight',
+        data: spec.values,
+        backgroundColor: colors,
+        borderWidth: 0,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: 'GA‑learned feature weights', color: '#c5d0da', font: { size: 14, weight: '600' } }
+      },
+      scales: {
+        x: {
+          min: 0,
+          suggestedMax: 1,
+          grid: { color: 'rgba(42, 53, 68, 0.9)' },
+          ticks: { color: '#8b98a5' }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#c5d0da', font: { size: 10 } }
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

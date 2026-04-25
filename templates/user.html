@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}User {{ user_id }} — Preference lab{% endblock %}
+{% block body %}
+<nav class="breadcrumb"><a href="{{ url_for('home') }}">Home</a> <span class="sep">/</span> User {{ user_id }}</nav>
+
+<section class="card">
+  <p class="eyebrow">Profile</p>
+  <h1>User {{ user_id }}</h1>
+  {% if urow %}
+  <dl class="kv kv-profile">
+    <dt>Age</dt><dd>{{ urow.age }}</dd>
+    <dt>Location</dt><dd>{{ urow.location }}</dd>
+    <dt>Interactions in merged data</dt><dd>{{ urow.n_interactions }}</dd>
+  </dl>
+  {% endif %}
+</section>
+
+{% if model_ready and snapshot %}
+<section class="card">
+  <h2 class="section-title">Preference axes (GA weights)</h2>
+  <p class="hint">
+    Weights are <strong>global</strong> in this demo: one GA solution for the whole store. Each user page still personalises rankings because feature rows depend on that user’s age and on product‑level statistics built from the training split.
+  </p>
+
+  {% if chart_spec %}
+  <div class="viz-block">
+    <h3 class="subsection-title">Weight chart</h3>
+    <div class="chart-shell chart-shell-tall"><canvas id="weightsChartUser" height="260" aria-label="Horizontal bar chart of GA weights"></canvas></div>
+  </div>
+  {% endif %}
+
+  <h3 class="subsection-title">Table view</h3>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Signal</th>
+          <th>Weight</th>
+          <th>Share</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in prefs %}
+        <tr>
+          <td>{{ p.label }}</td>
+          <td><code>{{ "%.4f"|format(p.weight) }}</code></td>
+          <td>
+            <div class="bar-cell">
+              <div class="bar-wrap"><span class="bar" style="width: {{ p.weight_pct }}%"></span></div>
+              <span class="pct">{{ p.weight_pct }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2 class="section-title">Top recommendations</h2>
+  <p class="hint">
+    Products are sorted by the linear score <code>s = w · x</code> where <code>w</code> is the GA vector and <code>x</code> is the engineered feature row (including the tree prediction column). Prices are shown in <strong>euros (€)</strong>.
+  </p>
+  {% if recs %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Product ID</th>
+          <th>Category</th>
+          <th>Price (€)</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recs %}
+        <tr>
+          <td><code>{{ r.product_id }}</code></td>
+          <td>{{ r.category }}</td>
+          <td class="num">{{ "%.2f"|format(r.price) }}</td>
+          <td class="num"><code>{{ "%.4f"|format(r.score) }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No products returned — check the product sheet.</p>
+  {% endif %}
+</section>
+{% else %}
+<section class="card card-muted">
+  <p>Run <strong>Train decision tree + run GA</strong> on the home page first. That step fits the tree, optimises weights, and unlocks recommendations.</p>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+{% if chart_spec %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script>
+(function () {
+  var spec = {{ chart_spec|tojson }};
+  var el = document.getElementById('weightsChartUser');
+  if (!el || !spec || !spec.labels || !spec.values) return;
+  var colors = spec.labels.map(function (_, i) {
+    return 'hsl(' + ((i * 47) % 360) + ', 48%, 52%)';
+  });
+  new Chart(el, {
+    type: 'bar',
+    data: {
+      labels: spec.labels,
+      datasets: [{
+        label: 'Weight',
+        data: spec.values,
+        backgroundColor: colors,
+        borderWidth: 0,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: 'GA‑learned feature weights', color: '#c5d0da', font: { size: 14, weight: '600' } }
+      },
+      scales: {
+        x: {
+          min: 0,
+          suggestedMax: 1,
+          grid: { color: 'rgba(42, 53, 68, 0.9)' },
+          ticks: { color: '#8b98a5' }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#c5d0da', font: { size: 10 } }
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
