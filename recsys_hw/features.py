@@ -4,8 +4,34 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import OrdinalEncoder
 from sklearn.tree import DecisionTreeRegressor
+
+
+class SimpleOrdinalEncoder:
+    """
+    Lightweight drop-in for sklearn OrdinalEncoder.
+    Maps string categories to integer codes; unknown values map to -1.
+    Avoids pulling in scipy (~100 MB) as a transitive dependency.
+    """
+
+    def __init__(self, handle_unknown: str = "use_encoded_value", unknown_value: int = -1) -> None:
+        self.unknown_value = unknown_value
+        self._mapping: dict[str, int] = {}
+
+    def fit(self, X) -> "SimpleOrdinalEncoder":
+        # Accept both pandas DataFrames and numpy arrays
+        arr = np.asarray(X)
+        categories = sorted({str(v) for v in arr[:, 0]})
+        self._mapping = {cat: i for i, cat in enumerate(categories)}
+        return self
+
+    def transform(self, X) -> np.ndarray:
+        # Accept both pandas DataFrames and numpy arrays
+        arr = np.asarray(X)
+        return np.array(
+            [[self._mapping.get(str(v), self.unknown_value)] for v in arr[:, 0]],
+            dtype=np.float64,
+        )
 
 from recsys_hw import config
 
@@ -103,7 +129,7 @@ FEATURE_LABELS_AR = (
 
 def design_matrix_with_dt(
     train: pd.DataFrame, val: pd.DataFrame, stats: dict
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, DecisionTreeRegressor, OrdinalEncoder]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, DecisionTreeRegressor, SimpleOrdinalEncoder]:
     """
     Build X_train, X_val (includes DT prediction column — paper alignment).
 
@@ -112,7 +138,7 @@ def design_matrix_with_dt(
       user mean rating, category mean rating, inv price norm,
       DT predicted target from (age, price, category code).
     """
-    enc = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
+    enc = SimpleOrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
     enc.fit(train[["category"]].astype(str))
 
     def base_block(part: pd.DataFrame) -> pd.DataFrame:
