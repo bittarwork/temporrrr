@@ -1,194 +1,43 @@
 {% extends "base.html" %}
-
-{% block title %}SmartAIShop — Home{% endblock %}
-
+{% block title %}Home · ShopRec{% endblock %}
 {% block content %}
-
-<!-- ========================== HERO ========================== -->
-<section class="hero-section">
-  <div class="container">
-    <div class="hero-content">
-      <span class="hero-badge"><i class="bi bi-stars"></i> AI-Powered Recommendations</span>
-      <h1 class="hero-title">Shop Smarter<br/>with Genetic AI</h1>
-      <p class="hero-sub">
-        Our recommendation engine evolves the perfect product picks for you
-        using a Genetic Algorithm trained on real behaviour data.
+<section class="relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-indigo-50 -z-10"></div>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-20">
+    <div class="max-w-2xl">
+      <p class="text-brand-600 font-semibold text-sm uppercase tracking-wide mb-3">Personalized for every shopper</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-slate-900 leading-tight mb-6">
+        Find products you will actually want.
+      </h1>
+      <p class="text-lg text-slate-600 mb-8 leading-relaxed">
+        We combine your ratings and browsing signals with a decision tree predictor, then a genetic algorithm fine-tunes a shortlist that balances accuracy and variety—so recommendations feel fresh, not repetitive.
       </p>
-
-      <!-- Quick user entry -->
-      <form method="POST" action="/select-user" class="hero-form d-flex gap-2 flex-wrap">
-        <input type="number" name="user_id" class="form-control hero-input"
-               placeholder="Enter your User ID…" min="1" required/>
-        <button type="submit" class="btn btn-primary btn-lg px-4">
-          <i class="bi bi-stars me-1"></i> Get My Recommendations
-        </button>
-      </form>
-
-      <p class="hero-hint">
-        <i class="bi bi-info-circle"></i>
-        Try any User ID from the dataset (e.g. 1, 5, 42, 100…)
-      </p>
+      <div class="flex flex-wrap gap-4">
+        <a href="{{ url_for('shop') }}" class="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-brand-600 text-white font-semibold shadow-lg shadow-brand-600/30 hover:bg-brand-500 transition">
+          Browse catalog
+        </a>
+        <a href="{{ url_for('users_page') }}" class="inline-flex items-center justify-center px-6 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-800 font-semibold hover:border-brand-300 hover:bg-brand-50/50 transition">
+          Pick a profile
+        </a>
+      </div>
     </div>
-
-    <!-- Floating stats cards -->
-    <div class="hero-stats d-none d-xl-flex">
-      <div class="stat-card">
-        <span class="stat-icon">🧬</span>
-        <strong>GA</strong>
-        <span>50 generations</span>
+    <div class="mt-16 grid sm:grid-cols-3 gap-4">
+      <div class="rounded-2xl bg-white p-6 border border-slate-100 shadow-sm">
+        <div class="text-3xl font-bold text-brand-600 mb-1">{{ user_count }}</div>
+        <div class="text-sm font-medium text-slate-800">Customers in data</div>
+        <p class="text-xs text-slate-500 mt-2">Replace <code class="bg-slate-100 px-1 rounded">data/*.xlsx</code> with your course files anytime.</p>
       </div>
-      <div class="stat-card">
-        <span class="stat-icon">📊</span>
-        <strong>15 500+</strong>
-        <span>behaviour signals</span>
+      <div class="rounded-2xl bg-white p-6 border border-slate-100 shadow-sm">
+        <div class="text-3xl font-bold text-indigo-600 mb-1">{{ product_count }}</div>
+        <div class="text-sm font-medium text-slate-800">Products</div>
+        <p class="text-xs text-slate-500 mt-2">Categories and prices drive content-based scoring.</p>
       </div>
-      <div class="stat-card">
-        <span class="stat-icon">🎯</span>
-        <strong>Top-8</strong>
-        <span>personalised picks</span>
+      <div class="rounded-2xl bg-white p-6 border border-slate-100 shadow-sm">
+        <div class="text-3xl font-bold text-emerald-600 mb-1">GA + DT</div>
+        <div class="text-sm font-medium text-slate-800">Smart shortlist</div>
+        <p class="text-xs text-slate-500 mt-2">Tree predicts ratings; GA optimizes the final list.</p>
       </div>
     </div>
   </div>
 </section>
-
-<!-- ========================== MAIN LAYOUT ========================== -->
-<div class="container my-4">
-  <div class="row g-4">
-
-    <!-- ---- SIDEBAR ---- -->
-    <div class="col-lg-3">
-      <div class="filter-card">
-        <h6 class="filter-title"><i class="bi bi-funnel me-1"></i>Filter Products</h6>
-
-        <!-- Search (mobile) -->
-        <div class="d-lg-none mb-3">
-          <form method="GET">
-            <div class="input-group">
-              <input name="search" type="text" class="form-control form-control-sm"
-                     placeholder="Search…" value="{{ search }}"/>
-              <button class="btn btn-primary btn-sm" type="submit">
-                <i class="bi bi-search"></i>
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Categories -->
-        <p class="filter-label">Categories</p>
-        <a href="{{ url_for('index') }}"
-           class="filter-chip {% if not selected_category %}active{% endif %}">
-          All Products
-          <span class="chip-count">{{ total_products }}</span>
-        </a>
-        {% for cat in categories %}
-        <a href="{{ url_for('index', category=cat, search=search) }}"
-           class="filter-chip {% if selected_category == cat %}active{% endif %}">
-          {{ cat }}
-        </a>
-        {% endfor %}
-      </div>
-    </div>
-    <!-- /SIDEBAR -->
-
-    <!-- ---- PRODUCTS GRID ---- -->
-    <div class="col-lg-9">
-
-      <!-- Results header -->
-      <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <div>
-          <h5 class="mb-0 fw-semibold">
-            {% if selected_category %}{{ selected_category }}
-            {% elif search %}Results for "{{ search }}"
-            {% else %}All Products{% endif %}
-          </h5>
-          <small class="text-muted">{{ total_products }} products found</small>
-        </div>
-        {% if selected_category or search %}
-        <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-x me-1"></i>Clear filters
-        </a>
-        {% endif %}
-      </div>
-
-      <!-- Product cards grid -->
-      <div class="row row-cols-2 row-cols-md-3 g-3">
-        {% for p in products %}
-        <div class="col">
-          <a href="{{ url_for('product_detail', product_id=p.product_id) }}"
-             class="product-card-link">
-            <div class="product-card">
-
-              <!-- Product image area -->
-              <div class="product-img" style="background: linear-gradient(135deg, {{ p.cat_color }}33, {{ p.cat_color }}88);">
-                <span class="product-emoji">{{ p.emoji }}</span>
-                <span class="product-badge-cat">{{ p.category }}</span>
-              </div>
-
-              <!-- Card body -->
-              <div class="product-body">
-                <p class="product-name">{{ p.name }}</p>
-
-                <!-- Stars -->
-                <div class="product-stars">
-                  {% set full = p.avg_rating | int %}
-                  {% for i in range(full) %}<i class="bi bi-star-fill"></i>{% endfor %}
-                  {% if p.avg_rating - full >= 0.5 %}<i class="bi bi-star-half"></i>{% endif %}
-                  {% for i in range(5 - full - (1 if p.avg_rating - full >= 0.5 else 0)) %}<i class="bi bi-star"></i>{% endfor %}
-                  <span class="rating-val">{{ p.avg_rating }}</span>
-                  <span class="rating-count">({{ p.rating_count }})</span>
-                </div>
-
-                <!-- Price + purchases -->
-                <div class="product-footer">
-                  <span class="product-price">€{{ "%.2f"|format(p.price) }}</span>
-                  <span class="product-purchases">
-                    <i class="bi bi-bag-check"></i> {{ p.purchase_count }}
-                  </span>
-                </div>
-              </div>
-
-            </div>
-          </a>
-        </div>
-        {% else %}
-        <div class="col-12 text-center py-5 text-muted">
-          <i class="bi bi-search display-4"></i>
-          <p class="mt-2">No products found.</p>
-        </div>
-        {% endfor %}
-      </div>
-
-      <!-- Pagination -->
-      {% if total_pages > 1 %}
-      <nav class="mt-4 d-flex justify-content-center">
-        <ul class="pagination pagination-sm">
-          <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('index', page=current_page-1, category=selected_category, search=search) }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% for p in range(1, total_pages+1) %}
-            {% if p == current_page or (p >= current_page-2 and p <= current_page+2) or p == 1 or p == total_pages %}
-            <li class="page-item {% if p == current_page %}active{% endif %}">
-              <a class="page-link" href="{{ url_for('index', page=p, category=selected_category, search=search) }}">{{ p }}</a>
-            </li>
-            {% elif p == current_page-3 or p == current_page+3 %}
-            <li class="page-item disabled"><span class="page-link">…</span></li>
-            {% endif %}
-          {% endfor %}
-          <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('index', page=current_page+1, category=selected_category, search=search) }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-        </ul>
-      </nav>
-      {% endif %}
-
-    </div>
-    <!-- /PRODUCTS GRID -->
-
-  </div>
-</div>
-
 {% endblock %}

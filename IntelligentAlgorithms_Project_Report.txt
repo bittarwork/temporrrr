@@ -1,0 +1,490 @@
+================================================================================
+تقرير مشروع — نظام توصيات للمتجر الإلكتروني
+(مقرر الخوارزميات الذكية — ربط ورقة بحثية + تطبيق ويب Flask)
+صيغة الملف: نص عادي (.txt) — يمكن نسخ أكواد PlantUML إلى
+https://www.plantuml.com/plantuml أو إضافة PlantUML في VS Code
+================================================================================
+ملاحظة: هذا الإصدار موسّع بتفاصيل إضافية (منهجية، معاملات، ملفات المشروع،
+API، سياسة البيانات، حدود العمل، ومخططات جديدة).
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1) ملخص الورقة البحثية — موسّع
+--------------------------------------------------------------------------------
+
+1.1 الاقتباس الكامل (للتقرير الرسمي عند التسليم)
+Deshmukh, S., Shinde, A., Shinde, S., Vanam, H., Somkunwar, R., & Mungale, N.
+(2025). Customer behavioural content recommendation system using decision tree
+and genetic algorithm for online shopping websites. Multidisciplinary Science
+Journal, 7, e2025003.
+DOI: https://doi.org/10.31893/multiscience.2025003
+(استلام 2024، قبول 2024، نشر إلكتروني 2024 — ضمن نطاق سنوات 2024–2026)
+
+1.2 السياق والدافع
+مع نمو التجارة الإلكترونية يزداد حجم الكتالوج وتعقيد اختيار المنتج المناسب.
+أنظمة التوصية تهدف لتقليل **فائض المعلومات** وتحسين تجربة الشراء. الورقة
+تصنّف أنواع أنظمة التوصية (تصفية تعاونية، قائمة على المحتوى، هجينة، إلخ)
+وتذكر أن الأنظمة القائمة على المحتوى قد تعاني من:
+- فرط التخصص: توصيات قريبة جداً مما شاهده المستخدم سابقاً.
+- ضعف الصدفة/الاكتشاف (serendipity): قلة طرح منتجات مفيدة لكن غير مكررة.
+- الحاجة لتقييمات كافية لبناء ملف مستخدم قوي (مشكلة المستخدم الجديد جزئياً).
+
+1.3 الفكرة التقنية في الورقة (بخطوات أوضح)
+(1) **إشارات المستخدم والمنتج:** تقييمات (User_ID, Product_ID, Rating) وسمات
+مستخدم (مثل العمر) وسمات منتج (مثل السعر، الفئة/النوع).
+(2) **شجرة القرار:** تُستخدم في سياق التوصية القائمة على المحتوى؛ الهدف
+(target) مرتبط بالتقييم لتقسيم/تنبؤ يساعد على تقدير اهتمام المستخدم
+بالمنتجات غير المقيمة بعد.
+(3) **تشابه المحتوى:** ذكروا استخدام **Cosine similarity** بين المنتجات
+وعتبة تشابه (مثال في النص: > 0.75) لاستخراج قائمة مشابهة كمدخل للمرحلة
+التالية.
+(4) **الخوارزمية الجينية:** لا تكتفي بترتيب جشع فقط؛ بل تمثل **قائمة توصية
+كاملة** كفرد في المجتمع (مثال في الورقة: كروموسوم يحتوي عدة معرفات
+منتجات)، وتُقيَّم الملاءمة بما يعكس جودة التطابق مع التفضيلات **و**
+إدخال تنوع/ندرة في القائمة (مقارنة مع أساليب Content-based تقليدية).
+(5) **التقييم في الورقة:** جداول نوعية (تنوع النتائج، قابلية النمو، فرط
+التخصص) ومؤشر **Uniqueness** يقارن بين الأساليب عند قيم K مختلفة
+لطول قائمة التوصية.
+
+1.4 ما الذي لا تفصّله الورقة حرفياً (للصدق العلمي في تقريرك)
+- تفاصيل تدريب الشجرة (عمق، معايير إيقاف) قد تختلف حسب التنفيذ.
+- ذكروا معاملات تجريبية للـ GA في أشكال/أرقام (مثل حجم مجتمع كبير نسبياً
+في وصفهم)؛ مشروعنا يستخدم معاملات قابلة للضبط من الرابط لسهولة التجربة.
+- الورقة تشير لمصادر بيانات متعددة في أجزاء مختلفة من النص؛ المهم فكرياً
+هو **المنهجية** لا نسخ مجموعة بيانات واحدة حرفياً.
+
+
+--------------------------------------------------------------------------------
+2) مخططات PlantUML — شرح فكرة الورقة والخوارزمية
+--------------------------------------------------------------------------------
+
+(انسخ كل كتلة بين @startuml و @enduml إلى محرر PlantUML)
+
+--- مخطط 2.1: المكونات الرئيسية في الورقة (مستوى عالٍ) ---
+
+@startuml
+skinparam shadowing false
+skinparam style strictuml
+
+package "Online store context" {
+[User behaviour\n(ratings, browsing)] as U
+[Product catalogue\n(category, price, ...)] as P
+}
+
+package "Proposed system (paper)" {
+[Decision Tree\n(classify / predict)] as DT
+[Content-based\nsimilarity (e.g. cosine)] as CB
+[Candidate item pool] as Pool
+[Genetic Algorithm\n(list optimizer)] as GA
+[Final recommendation list] as Out
+}
+
+U --> DT : features from behaviour
+P --> DT
+DT --> CB : user need / prediction context
+CB --> Pool : similar items above threshold
+Pool --> GA : chromosomes = product lists
+GA --> Out : optimized list\n(fitness: relevance + diversity)
+
+note right of GA
+Chromosome: fixed-size list of product IDs
+Operators: selection, crossover, mutation
+Goal: better rating alignment + variety
+end note
+
+@enduml
+
+
+--- مخطط 2.2: تدفق العمل (Activity) كما في الورقة ---
+
+@startuml
+start
+:Collect user–item interactions\nand product attributes;
+:Train / apply Decision Tree\n(target often related to rating);
+:Build content-based similarity\nbetween products;
+:Form candidate recommendation set\n(filter by similarity threshold);
+:Initialize GA population\n(random valid product lists);
+repeat
+:Evaluate fitness for each list\n(relevance + diversity);
+:Selection + crossover + mutation;
+repeat while (stop criterion?) is (no) not (yes)
+:Return best recommendation list\nto the user interface;
+stop
+@enduml
+
+
+--- مخطط 2.3: دور الخوارزمية الجينية داخل الورقة (بسيط) ---
+
+@startuml
+participant "Population" as Pop
+participant "Fitness evaluator" as Fit
+participant "Genetic operators" as Op
+
+Pop -> Fit : each chromosome = list of products
+Fit --> Pop : fitness scores\n(mean predicted match + diversity bonus)
+Pop -> Op : select parents
+Op -> Pop : offspring (crossover + mutation + repair)
+note over Pop
+Paper motivation: reduce overspecialization
+by optimizing whole lists, not only
+greedy top-k by similarity.
+end note
+@enduml
+
+
+--- مخطط 2.4 (جديد): مقارنة عقلية — جشع Top-K مقابل تحسين قائمة بـ GA ---
+
+@startuml
+start
+partition "Greedy baseline (concept)" {
+:Sort items by one score\n(e.g. similarity or predicted rating);
+:Take first K items;
+}
+partition "GA approach (paper spirit)" {
+:Search over **sets of K items**;
+:Fitness rewards **joint** quality\n+ list diversity;
+:Explore non-greedy combinations;
+}
+stop
+@enduml
+
+
+--------------------------------------------------------------------------------
+3) من الورقة البحثية إلى مشروعنا — تحويل مفصّل
+--------------------------------------------------------------------------------
+
+3.1 جدول مطابقة سريع
+
+| فكرة في الورقة              | ماذا فعلنا في المشروع (ملموس)                    |
+|-----------------------------|---------------------------------------------------|
+| سلوك + تقييمات             | ratings.xlsx + behaviour.xlsx + users/products    |
+| شجرة قرار للتنبؤ/التصنيف   | DecisionTreeRegressor يتنبأ بالتقييم 1–5         |
+| تشابه محتوى + مرشحون       | تنبؤات عالية + خلط استكشافي لبناء **search pool** |
+| GA على قوائم               | كروموسوم = K منتجات؛ إصلاح التكرار (repair)      |
+| تنوع القائمة               | bonus ∝ (عدد الفئات المميزة / K)                  |
+| واجهة مستخدم               | Flask + صفحة تحميل + GET /api/recommendations    |
+
+(في ملف Word يمكن تحويل السطور أعلاه إلى جدول منسّق.)
+
+3.2 ملفات الكود في المستودع (للتوثيق في التقرير)
+
+- app.py
+مسارات Flask: / ، /shop ، /users ، /recommendations/<id> ،
+و /api/recommendations/<id> لإرجاع JSON بعد تشغيل المحرك.
+- data_loader.py
+قراءة Excel، تطبيع أسماء الأعمدة، سياسة القيم الناقصة، إزالة تكرار
+السلوك على (user_id, product_id) مع الإبقاء على آخر صف.
+- recommender.py
+فئة RecommenderEngine: دمج الجداول، تدريب الشجرة، بناء المجمع، حلقة GA،
+وإرجاع قائمة توصية + ميتاداتا (fitness، حجم المجمع، معاملات GA).
+
+3.3 متجهات المدخلات لشجرة القرار (كما في التنفيذ)
+
+لكل صف تدريب (user, product) يُدمج مع users و products و behaviour:
+- عمر المستخدم (age)
+- موقع المستخدم (location) بعد ترميز LabelEncoder
+- فئة المنتج (category) بعد ترميز
+- سعر المنتج (price)
+- viewed, clicked, purchased للزوج نفسه (أو 0 إن لم يوجد سجل سلوك)
+
+الهدف y: rating الفعلي من ratings.xlsx.
+
+ملاحظة: هذا يبسّط فكرة الورقة (التي تناقش أعمدة مثل جنس/وظيفة في نص عام)
+ليتوافق مع أعمدة بيانات المقرر المتاحة لديك.
+
+3.4 دالة الملاءمة في المشروع (صياغة لفظية + رياضية بسيطة)
+
+لقائمة توصية تحتوي المنتجات p1..pK للمستخدم u:
+
+Fitness(u, list) = mean( ŷ(u, pi) ) + w * ( |فئات مميزة| / K )
+
+حيث ŷ تنبؤ شجرة القرار بالتقييم، و w وزن التنوع (diversity_weight في الكود).
+الهدف: رفع متوسط التنبؤ **مع** تشجيع قوائم تضم فئات متعددة لتقليل التخصص
+المفرط — بروح مقاييس التنوع/Uniqueness في الورقة.
+
+3.5 حلقة GA باختصار (للوصف في التقرير)
+
+1) ابنِ مجمع مرشحين pool من المنتجات (أعلى تنبؤ + خلط عشوائي ضمن المجمع).
+2) أنشئ مجتمعاً عشوائياً من كروموسومات طول K بدون تكرار داخل الكروموسوم.
+3) لعدد أجيال: رتّب حسب Fitness، احتفظ بطبقة نخبة (elite)، أنجب أبناء
+بـ crossover و mutation، وأصلح أي تكرار باستبدال من pool.
+4) أعد أفضل فرد رأيناه عبر الأجيال.
+
+3.6 الفروقات المقصودة بين الورقة والمشروع (صراحة مفيدة للدكتور)
+
+- الورقة: طبقة تشابه جيبي صريحة بين المنتجات؛ المشروع: التنبؤ بالتقييم
+يغذي اختيار المجمع بدلاً من مصفوفة تشابه كاملة (تبسيط حسابي مع الحفاظ
+على فكرة «مرشحون ثم بحث»).
+- الورقة: واجهة بحثية؛ المشروع: متجر تجريبي + API + شاشة تحميل.
+- الورقة: مقاييس uniqueness في الجداول؛ المشروع: يمكنك ذكر أن التنوع
+مدمج في Fitness ويمكن لاحقاً إضافة مقياس صريح كتجربة موسعة.
+
+
+--- مخطط 3.1: مطابقة مفاهيم الورقة ↔ مشروعنا ---
+
+@startuml
+left to right direction
+
+rectangle "Research paper (concept)" as RP {
+(User behaviour) as RP1
+(Decision tree) as RP2
+(Content / similarity layer) as RP3
+(GA list optimization) as RP4
+}
+
+rectangle "Our Flask project" as PR {
+(Excel tables:\nusers, products,\nratings, behaviour) as PR1
+(DT regressor:\npredict rating) as PR2
+(Candidate pool:\ntop predictions +\nexploration) as PR3
+(GA:\nfitness = rating +\ndiversity) as PR4
+(Web UI + /api) as PR5
+}
+
+RP1 --> PR1 : same role:\ninteraction signals
+RP2 --> PR2 : same role:\nlearn from history
+RP3 --> PR3 : analogous role:\nbuild search space
+RP4 --> PR4 : same role:\noptimize final list
+PR5 ..> RP : extra layer:\nuser-facing demo
+
+@enduml
+
+
+--- مخطط 3.2: مسار البيانات في المشروع ---
+
+@startuml
+skinparam monochrome false
+
+folder "data/*.xlsx" as X
+component "pandas loader\n+ cleaning policy" as L
+database "In-memory\nDataFrames" as D
+component "RecommenderEngine" as R {
+[Fit DT on merged\nuser–item rows] as DT
+[Build candidate pool\nper user] as C
+[Run GA loop] as GA
+}
+
+X --> L
+L --> D
+D --> DT
+DT --> C
+C --> GA
+GA --> JSON : items + meta\n(fitness, pool size, GA params)
+
+@enduml
+
+
+--- مخطط 3.3 (جديد): حزم المشروع (ملفات) — Class-style ---
+
+@startuml
+package "shoprec_app" {
+class "Flask (app.py)" as APP {
++ routes: /, /shop, /users
++ /recommendations/<id> HTML
++ /api/recommendations/<id> JSON
+}
+class "data_loader.py" as DL {
++ load_all()
++ column normalization
++ missing-value policy
+}
+class "recommender.py" as RE {
++ RecommenderEngine
++ GAConfig
+}
+}
+APP ..> DL
+APP ..> RE
+DL ..> (Excel files)
+@enduml
+
+
+--------------------------------------------------------------------------------
+4) طريقة عمل الموقع والاستخدام — موسّع
+--------------------------------------------------------------------------------
+
+4.1 المتطلبات والتشغيل
+
+المتطلبات (من requirements.txt):
+- Python 3.x
+- flask, pandas, openpyxl, scikit-learn, numpy
+
+الأوامر:
+py -m pip install -r requirements.txt
+py app.py
+
+العنوان الافتراضي:
+http://127.0.0.1:5000
+
+إذا استبدلت ملفات data/*.xlsx ببيانات المقرر:
+أعد تشغيل الخادم لأن المحرك يُحمّل مرة واحدة (cache) في الجلسة الافتراضية.
+
+4.2 وصف المسارات (Endpoints)
+
+GET /
+الصفحة الرئيسية: تعريف قصير، أعداد المستخدمين/المنتجات من البيانات.
+
+GET /shop
+كل المنتجات مرتبة للعرض؛ السعر يُعرض باليورو (رمز €) حسب إعداد الواجهة.
+
+GET /users
+شبكة بطاقات؛ كل بطاقة تمثل مستخدماً من users.xlsx.
+
+GET /recommendations/<user_id>
+يعيد HTML سريعاً: عنوان المستخدم + **شاشة تحميل**.
+المتصفح يستدعي بعدها:
+GET /api/recommendations/<user_id>?k=&pop=&gen=
+يعيد JSON يحتوي:
+items: مصفوفة من { rank, product_id, category, price, predicted_rating }
+meta: { ga_best_fitness, pool_size, list_size, population, generations }
+
+4.3 لماذا شاشة التحميل + API؟
+
+تشغيل GA قد يستغرق ثوانٍ. فصل **عرض الصفحة** عن **الحساب الثقيل** يعطي
+تجربة مستخدم أوضح: يظهر تفسير فوري ثم النتائج عند الجاهزية.
+
+4.4 معاملات تجريبية في الرابط
+
+مثال:
+/recommendations/12?k=10&pop=80&gen=40
+
+المعاني:
+k   — طول قائمة التوصية (عدد المنتجات في الكروموسوم)
+pop — حجم المجتمع في كل جيل
+gen — عدد الأجيال
+
+ملاحظة: زيادة pop و gen قد تحسن الجودة أحياناً لكن تزيد زمن الاستجابة.
+
+4.5 شرح مخرجات الواجهة (للصق بجانب لقطات الشاشة)
+
+- **Predicted rating:** متوقع من الشجرة لكل منتج في القائمة النهائية؛ مقياس
+تقريبي 1–5 يعكس أنماط التدريب (ليس «حقيقة» مستقبلية مضمونة).
+- **GA fitness (best):** أفضل قيمة ملاءمة وُجدت أثناء التطور؛ تجمع جودة
+التنبؤات المتوسطة ومكافأة التنوع؛ مفيد لمقارنة تشغيلتين بمعاملات مختلفة.
+- **Search pool:** كم منتجاً دخل فضاء بحث GA؛ يفسر مرونة/قيود الاختيار.
+
+4.6 سياسة البيانات (جملة واحدة للتقرير الأكاديمي)
+
+القيم الناقصة: تُملأ الأعمار بوسيط العمر، والموقع الناقص بـ «Unknown»،
+والتقييمات غير الرقمية تُستبعد من تدريب الشجرة؛ سلوك مفقود يُعامل كأصفار
+للزوج (user, product)؛ التكرار في behaviour يُزال مع الإبقاء على آخر سجل.
+
+4.7 أماكن مقترحة للقطات الشاشة
+
+[لقطة 1 — الرئيسية: أرقام المستخدمين والمنتجات]
+[لقطة 2 — الكتالوج: فئات وأسعار]
+[لقطة 3 — صفحة المستخدمين]
+[لقطة 4 — التحميل: نص «Building your recommendations»]
+[لقطة 5 — النتائج: بطاقات GA + قائمة المنتجات]
+[لقطة 6 (اختياري) — نفس المستخدم بمعاملات ?k=&pop=&gen= مختلفة لمقارنة fitness]
+
+
+--- مخطط 4.1: رحلة المستخدم ---
+
+@startuml
+actor User
+User --> (Open home)
+User --> (Browse catalog)
+User --> (Pick a shopper profile)
+User --> (Open recommendations page)
+User --> (See loading screen)
+User --> (See final ranked list\n+ metrics)
+
+note right of (See loading screen)
+Browser calls GET /api/recommendations/{id}
+Server runs DT + GA
+end note
+@enduml
+
+
+--- مخطط 4.2: تسلسل طلب التوصيات ---
+
+@startuml
+actor User
+participant "Browser" as B
+participant "Flask\n/recommendations/<id>" as P
+participant "Flask\n/api/recommendations/<id>" as A
+participant "RecommenderEngine" as E
+
+User -> B : open recommendations URL
+B -> P : GET HTML (fast)
+P --> B : page shell + loader UI
+B -> A : GET JSON (same query string)
+A -> E : recommend_for_user(...)
+E --> A : items + meta
+A --> B : JSON
+B -> B : hide loader,\nrender cards + list
+@enduml
+
+
+--- مخطط 4.3: طبقات التطبيق ---
+
+@startuml
+package "Presentation" {
+[Jinja templates\n+ Tailwind UI] as UI
+}
+
+package "Application" {
+[Flask routes] as F
+}
+
+package "Core logic" {
+[data_loader.py] as DL
+[recommender.py\n(DT + GA)] as REC
+}
+
+package "Data" {
+folder "Excel files" as XL
+}
+
+UI --> F
+F --> DL
+F --> REC
+DL --> XL
+REC --> DL : uses loaded frames
+
+@enduml
+
+
+--- مخطط 4.4 (جديد): حالة الصفحة — تحميل ثم نتائج ---
+
+@startuml
+[*] --> Loading : GET /recommendations/id
+Loading --> FetchAPI : DOM ready
+FetchAPI --> Loading : waiting
+FetchAPI --> Results : JSON ok
+FetchAPI --> Error : HTTP fail
+Error --> [*]
+Results --> [*]
+@enduml
+
+
+--------------------------------------------------------------------------------
+5) حدود العمل والتحسينات الممكنة (فقرة مهمة للتقرير)
+--------------------------------------------------------------------------------
+
+- الخوارزميات التنبؤية (شجرة قرار) **لا تضمن** أمثلية عامة؛ الجودة تعتمد
+على اكتمال البيانات وتمثيل الميزات.
+- GA **عشوائي جزئياً**؛ قد تختلف القائمة قليلاً بين تشغيلتين إذا غيّرت البذرة.
+- لم ننفّذ في هذا المشروع قياسات من الورقة مثل uniqueness الرقمي الكامل؛
+يمكن إضافتها كعمل لاحق ومقارنة مع خط أساس greedy top-K.
+- لم نضف تسجيل دخول حقيقي؛ المستخدم يُختار من القائمة لأغراض العرض الأكاديمي.
+
+
+--------------------------------------------------------------------------------
+6) خاتمة موسّعة (اقتراح نص)
+--------------------------------------------------------------------------------
+
+تقدّم الورقة إطاراً يجمع بين شجرة القرار في مسار توصية قائم على المحتوى
+وبين خوارزمية جينية لتحسين **قائمة** التوصية بأكملها، بهدف تخفيف فرط
+التخصص وزيادة تنوع النتائج. في مشروعنا، طبّقنا هذا المنطق على بيانات
+المقرر المجدولة في جداول Excel، مع نموذج تنبؤ بالتقييم عبر شجرة قرار
+ومساحة بحث للـ GA مبنية على أعلى التنبؤات مع استكشاف، وأضفنا واجهة متجر
+وتدفق API يوضح للمستخدم مراحل التوصية والمقاييس. هذا يحقق الهدف التعليمي
+والهندسي: ربط المرجع العلمي بتطبيق قابل للتشغيل والعرض.
+
+
+================================================================================
+نهاية الملف — دمج في Word/PDF + تصدير PlantUML كصور + إدراج لقطات الشاشة
+في الأماكن المشار إليها في القسم 4.7.
+================================================================================

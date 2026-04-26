@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}For you · ShopRec{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+  <div class="mb-10">
+    <h1 class="text-3xl font-bold text-slate-900">Choose a shopper</h1>
+    <p class="text-slate-600 mt-2 max-w-2xl">Each row is a real profile from <code class="text-sm bg-slate-100 px-1.5 py-0.5 rounded">users.xlsx</code>. We will build recommendations from ratings + behavior for that person.</p>
+  </div>
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for u in users %}
+    <a href="{{ url_for('recommendations', user_id=u.user_id) }}" class="block rounded-2xl bg-white border border-slate-100 p-6 shadow-sm hover:shadow-lg hover:border-brand-300 hover:-translate-y-0.5 transition text-left">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 text-white flex items-center justify-center text-xl font-bold">
+          {{ u.user_id }}
+        </div>
+        <div>
+          <div class="font-semibold text-slate-900">User {{ u.user_id }}</div>
+          <div class="text-sm text-slate-500">Age {{ u.age|int }} · {{ u.location }}</div>
+        </div>
+      </div>
+      <p class="text-sm text-brand-600 font-medium mt-4">View recommendations →</p>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

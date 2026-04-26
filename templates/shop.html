@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Catalog · ShopRec{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+  <div class="mb-10">
+    <h1 class="text-3xl font-bold text-slate-900">Catalog</h1>
+    <p class="text-slate-600 mt-2 max-w-xl">All items come from your spreadsheet data. Open <span class="font-medium text-slate-800">For you</span> to see tailored picks.</p>
+  </div>
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for p in products %}
+    <article class="group rounded-2xl bg-white border border-slate-100 p-5 shadow-sm hover:shadow-md hover:border-brand-200/60 transition">
+      <div class="flex items-start justify-between gap-3">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">{{ p.category }}</span>
+        <span class="text-lg font-bold text-slate-900">{{ currency }}{{ (p.price | float) | round(2) }}</span>
+      </div>
+      <h2 class="mt-4 text-lg font-semibold text-slate-900">Product #{{ p.product_id }}</h2>
+      <p class="text-sm text-slate-500 mt-1">ID {{ p.product_id }} · ready for recommendation matching</p>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
