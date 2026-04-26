@@ -1,498 +1,194 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>ETagMF — GA Recommender System</title>
-<style>
-/* ── Base ──────────────────────────────────────────────────────────── */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#eef2f7;color:#1c2b40;min-height:100vh}
+{% extends "base.html" %}
 
-/* ── Nav ─────────────────────────────────────────────────────────── */
-nav{background:#0f2744;display:flex;gap:0;border-bottom:3px solid #1a6ab1}
-nav a{color:#a8c8f0;padding:13px 22px;font-size:.85rem;font-weight:700;text-decoration:none;transition:all .2s;border-right:1px solid rgba(255,255,255,.08)}
-nav a:hover{background:#1a4a7e;color:#fff}
-nav a.active{background:#1a6ab1;color:#fff}
+{% block title %}SmartAIShop — Home{% endblock %}
 
-/* ── Header ────────────────────────────────────────────────────────── */
-header{background:linear-gradient(130deg,#0f2744 0%,#1a4a7e 100%);color:#fff;padding:20px 30px}
-header h1{font-size:1.45rem;font-weight:800}
-header p{font-size:.82rem;opacity:.75;margin-top:5px;line-height:1.5}
-.doi{color:#7eb8f7;font-style:italic}
+{% block content %}
 
-/* ── Sample banner ─────────────────────────────────────────────────── */
-#banner{background:#fff8e1;border-left:4px solid #f9a825;padding:10px 22px;font-size:.84rem;display:none}
-#banner.show{display:block}
+<!-- ========================== HERO ========================== -->
+<section class="hero-section">
+  <div class="container">
+    <div class="hero-content">
+      <span class="hero-badge"><i class="bi bi-stars"></i> AI-Powered Recommendations</span>
+      <h1 class="hero-title">Shop Smarter<br/>with Genetic AI</h1>
+      <p class="hero-sub">
+        Our recommendation engine evolves the perfect product picks for you
+        using a Genetic Algorithm trained on real behaviour data.
+      </p>
 
-/* ── Layout ─────────────────────────────────────────────────────────── */
-main{max-width:1160px;margin:26px auto;padding:0 18px;display:grid;grid-template-columns:290px 1fr;gap:20px}
+      <!-- Quick user entry -->
+      <form method="POST" action="/select-user" class="hero-form d-flex gap-2 flex-wrap">
+        <input type="number" name="user_id" class="form-control hero-input"
+               placeholder="Enter your User ID…" min="1" required/>
+        <button type="submit" class="btn btn-primary btn-lg px-4">
+          <i class="bi bi-stars me-1"></i> Get My Recommendations
+        </button>
+      </form>
 
-/* ── Cards ──────────────────────────────────────────────────────────── */
-.card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:20px}
-.card h2{font-size:.92rem;font-weight:800;color:#0f2744;border-bottom:2px solid #e3eaf4;padding-bottom:9px;margin-bottom:15px}
-
-/* ── Stat boxes ─────────────────────────────────────────────────────── */
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
-.sbox{background:#fff;border-radius:10px;box-shadow:0 1px 8px rgba(0,0,0,.08);padding:12px;text-align:center}
-.sbox .num{font-size:1.6rem;font-weight:900;color:#1a4a7e}
-.sbox .lbl{font-size:.72rem;color:#7a8fa6;margin-top:2px}
-
-/* ── Form ───────────────────────────────────────────────────────────── */
-.fg{margin-bottom:12px}
-label{display:block;font-size:.78rem;font-weight:700;color:#3a4f68;margin-bottom:4px}
-label .hint{font-weight:400;color:#a0b0c4;margin-left:3px}
-input[type=number],select{width:100%;padding:8px 10px;border:1.5px solid #cdd8e8;border-radius:8px;font-size:.88rem;background:#f7fafd;color:#1c2b40;transition:border-color .2s}
-input:focus,select:focus{outline:none;border-color:#1a4a7e;background:#fff}
-
-/* ── Run button ─────────────────────────────────────────────────────── */
-#run-btn{width:100%;padding:12px;background:linear-gradient(130deg,#0f2744,#1a6ab1);color:#fff;border:none;border-radius:9px;font-size:.95rem;font-weight:800;cursor:pointer;margin-top:6px;letter-spacing:.3px;transition:opacity .2s}
-#run-btn:hover{opacity:.87}
-#run-btn:disabled{opacity:.45;cursor:not-allowed}
-
-/* ── Right column ───────────────────────────────────────────────────── */
-.right{display:flex;flex-direction:column;gap:18px}
-
-/* ── RMSE chart ─────────────────────────────────────────────────────── */
-#chart-wrap{position:relative;height:210px}
-#chart-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#b0bec8;font-size:.88rem}
-#rmse-canvas{width:100%;height:100%;display:none}
-.rmse-badge{display:inline-block;background:#e4eefb;color:#0f2744;border-radius:20px;padding:3px 14px;font-size:.8rem;font-weight:800;margin-top:10px;display:none}
-
-/* ── Spinner ─────────────────────────────────────────────────────────── */
-#spinner{display:none;text-align:center;padding:26px;color:#1a4a7e;font-weight:700}
-.spin-ring{display:inline-block;width:26px;height:26px;border:3px solid #cdd8e8;border-top-color:#1a4a7e;border-radius:50%;animation:spin .65s linear infinite;vertical-align:middle;margin-right:9px}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* ── Error ───────────────────────────────────────────────────────────── */
-#err-box{display:none;background:#fdecea;border:1px solid #f5c2c7;color:#842029;border-radius:8px;padding:11px 15px;font-size:.86rem}
-
-/* ── Two-col results grid ───────────────────────────────────────────── */
-.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-
-/* ── Tables ──────────────────────────────────────────────────────────── */
-table{width:100%;border-collapse:collapse;font-size:.84rem}
-th{background:#e8f0fb;color:#0f2744;font-weight:800;padding:8px 11px;text-align:left}
-td{padding:8px 11px;border-bottom:1px solid #f0f4f9}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#f7faff}
-
-/* ── Score bar ───────────────────────────────────────────────────────── */
-.bar-wrap{display:flex;align-items:center;gap:7px}
-.bar-bg{flex:1;height:7px;background:#dce8f7;border-radius:4px;overflow:hidden}
-.bar-fill{height:100%;background:linear-gradient(90deg,#1a4a7e,#3daef5);border-radius:4px;transition:width .7s ease}
-.bar-val{font-weight:800;color:#0f2744;min-width:42px;font-size:.82rem}
-
-/* ── Category badge ──────────────────────────────────────────────────── */
-.badge{display:inline-block;padding:2px 9px;border-radius:11px;font-size:.74rem;font-weight:700;background:#e4eefb;color:#0f2744}
-.badge.Electronics{background:#e3f2fd;color:#01579b}
-.badge.Clothing{background:#fce4ec;color:#880e4f}
-.badge.Books{background:#e8f5e9;color:#1b5e20}
-.badge.Home{background:#fff3e0;color:#bf360c}
-.badge.Sports{background:#ede7f6;color:#4527a0}
-
-/* ── Rating stars ────────────────────────────────────────────────────── */
-.stars{color:#f0a500}
-
-/* ── Q-values heatmap table ──────────────────────────────────────────── */
-.q-val-bar{display:inline-block;height:10px;background:linear-gradient(90deg,#1a4a7e,#3daef5);border-radius:3px;vertical-align:middle}
-
-/* ── Algorithm mapping box ───────────────────────────────────────────── */
-.mapping-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #dce8f7;border-radius:8px;overflow:hidden;font-size:.8rem;margin-top:4px}
-.mapping-grid .mh{background:#e8f0fb;font-weight:800;padding:7px 10px;color:#0f2744}
-.mapping-grid .mr{padding:7px 10px;border-top:1px solid #f0f4f9;color:#3a4f68}
-.mapping-grid .mr:nth-child(odd){background:#f7faff}
-
-/* ── Steps list ──────────────────────────────────────────────────────── */
-.steps{list-style:none;counter-reset:s}
-.steps li{counter-increment:s;display:flex;gap:9px;margin-bottom:9px;font-size:.8rem;color:#3a4f68;align-items:flex-start}
-.steps li::before{content:counter(s);flex-shrink:0;width:20px;height:20px;border-radius:50%;background:#1a4a7e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:900}
-
-@media(max-width:800px){
-  main{grid-template-columns:1fr}
-  .res-grid{grid-template-columns:1fr}
-  .mapping-grid{grid-template-columns:1fr}
-}
-</style>
-</head>
-<body>
-
-<nav>
-  <a href="/" class="active">&#127968; Demo</a>
-  <a href="/explain">&#129504; Algorithm Explained</a>
-  <a href="/paper-to-code">&#128196; Paper → Code</a>
-</nav>
-
-<header>
-  <h1>ETagMF — Genetic Algorithm Matrix Factorization Recommender System</h1>
-  <p>
-    Paper: <em>"A Genetic-Algorithms Matrix-Factorization Based Recommender System Model Using Tags"</em>
-    &nbsp;—&nbsp; <span class="doi">IEEE Access 2025 · DOI: 10.1109/ACCESS.2025.3550296</span>
-  </p>
-</header>
-
-<div id="banner" {% if using_sample %}class="show"{% endif %}>
-  ⚠️ <strong>Demo mode:</strong> xlsx files not found in <code>data/</code>.
-  Using built-in sample data (10 users, 20 products).
-  Place your xlsx files in <code>data/</code> and refresh the page.
-</div>
-
-<main>
-<!-- ════════════════════════════════ LEFT PANEL ═══════════════════════════ -->
-<aside>
-
-  <!-- Dataset stats -->
-  <div class="stats">
-    <div class="sbox"><div class="num">{{ num_users }}</div><div class="lbl">Users</div></div>
-    <div class="sbox"><div class="num">{{ num_products }}</div><div class="lbl">Products</div></div>
-    <div class="sbox"><div class="num">{{ num_ratings }}</div><div class="lbl">Ratings in R</div></div>
-    <div class="sbox"><div class="num">{{ num_tags }}</div><div class="lbl">Tag Dimensions</div></div>
-  </div>
-
-  <!-- GA Parameters -->
-  <div class="card">
-    <h2>⚙️ GA Parameters</h2>
-
-    <div class="fg">
-      <label>Target User</label>
-      <select id="user-id">
-        {% for uid in user_ids %}
-        <option value="{{ uid }}">User {{ uid }}</option>
-        {% endfor %}
-      </select>
+      <p class="hero-hint">
+        <i class="bi bi-info-circle"></i>
+        Try any User ID from the dataset (e.g. 1, 5, 42, 100…)
+      </p>
     </div>
 
-    <div class="fg">
-      <label>Top-N Recommendations</label>
-      <input type="number" id="top-n" value="5" min="1" max="20"/>
-    </div>
-
-    <div class="fg">
-      <label>Population Size (Np) <span class="hint">paper: varied 20–400</span></label>
-      <input type="number" id="np" value="20" min="5" max="200"/>
-    </div>
-
-    <div class="fg">
-      <label>Generations (Ni) <span class="hint">paper: 200–4000</span></label>
-      <input type="number" id="ni" value="80" min="10" max="500"/>
-    </div>
-
-    <div class="fg">
-      <label>Crossover Prob. (Pc) <span class="hint">paper: 0.8</span></label>
-      <input type="number" id="pc" value="0.8" min="0.1" max="1" step="0.05"/>
-    </div>
-
-    <div class="fg">
-      <label>Mutation Prob. (Pm) <span class="hint">paper: 0.5</span></label>
-      <input type="number" id="pm" value="0.05" min="0.001" max="1" step="0.005"/>
-    </div>
-
-    <div class="fg">
-      <label>Random Seed</label>
-      <input type="number" id="seed" value="42" min="0"/>
-    </div>
-
-    <button id="run-btn" onclick="runGA()">▶ Run ETagMF Algorithm</button>
-  </div>
-
-  <!-- Paper ↔ Data Mapping -->
-  <div class="card" style="margin-top:16px">
-    <h2>📄 Paper → Our Data Mapping</h2>
-    <div class="mapping-grid">
-      <div class="mh">Paper (ETagMF)</div>
-      <div class="mh">Our Adaptation</div>
-      <div class="mr">R (user × item)</div>
-      <div class="mr">ratings.xlsx + behavior.xlsx</div>
-      <div class="mr">P (item × tag)</div>
-      <div class="mr">category + price + behavior features</div>
-      <div class="mr">Q (user × tag) ← GA</div>
-      <div class="mr">user tag-affinities (learned)</div>
-      <div class="mr">Fitness = RMSE</div>
-      <div class="mr">√mean((R − Q·Pᵀ)²)</div>
-      <div class="mr">Tag genome (1128 tags)</div>
-      <div class="mr">{{ num_tags }} feature dimensions</div>
-    </div>
-
-    <div style="margin-top:14px">
-      <strong style="font-size:.8rem;color:#0f2744">Tag Dimensions Used:</strong>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px">
-        {% for t in tag_names %}
-        <span style="background:#e4eefb;color:#0f2744;border-radius:10px;padding:2px 9px;font-size:.73rem;font-weight:700">{{ t }}</span>
-        {% endfor %}
+    <!-- Floating stats cards -->
+    <div class="hero-stats d-none d-xl-flex">
+      <div class="stat-card">
+        <span class="stat-icon">🧬</span>
+        <strong>GA</strong>
+        <span>50 generations</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">📊</span>
+        <strong>15 500+</strong>
+        <span>behaviour signals</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🎯</span>
+        <strong>Top-8</strong>
+        <span>personalised picks</span>
       </div>
     </div>
   </div>
+</section>
 
-  <!-- Algorithm Steps -->
-  <div class="card" style="margin-top:16px">
-    <h2>🧬 Algorithm Steps (Algorithm 1)</h2>
-    <ol class="steps">
-      <li>Build <strong>R</strong>: ratings + behavior → user-item matrix</li>
-      <li>Build <strong>P</strong>: product features → tag-genome matrix</li>
-      <li>Initialize <strong>Np</strong> random Q chromosomes ∈ [0,1]</li>
-      <li>Compute <strong>RMSE</strong> fitness for each chromosome</li>
-      <li>Select parents via <strong>Roulette Wheel</strong> (1/RMSE)</li>
-      <li><strong>Row-crossover</strong>: swap one user-row (prob Pc)</li>
-      <li><strong>Mutation</strong>: random gene ∈ [0,1] (prob Pm)</li>
-      <li>Keep best Q (<strong>elitism</strong>), repeat Ni times</li>
-      <li>Predict <strong>R̂ = Q·Pᵀ</strong> → top-N unrated items</li>
-    </ol>
-  </div>
+<!-- ========================== MAIN LAYOUT ========================== -->
+<div class="container my-4">
+  <div class="row g-4">
 
-</aside>
+    <!-- ---- SIDEBAR ---- -->
+    <div class="col-lg-3">
+      <div class="filter-card">
+        <h6 class="filter-title"><i class="bi bi-funnel me-1"></i>Filter Products</h6>
 
-<!-- ═══════════════════════════════ RIGHT PANEL ══════════════════════════ -->
-<div class="right">
+        <!-- Search (mobile) -->
+        <div class="d-lg-none mb-3">
+          <form method="GET">
+            <div class="input-group">
+              <input name="search" type="text" class="form-control form-control-sm"
+                     placeholder="Search…" value="{{ search }}"/>
+              <button class="btn btn-primary btn-sm" type="submit">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+          </form>
+        </div>
 
-  <div id="err-box"></div>
-
-  <div id="spinner"><span class="spin-ring"></span>Running GA — please wait…</div>
-
-  <!-- RMSE convergence -->
-  <div class="card">
-    <h2>📉 RMSE Convergence  <small style="font-weight:400;color:#7a8fa6">(best per generation)</small></h2>
-    <div id="chart-wrap">
-      <div id="chart-placeholder">Run the algorithm to see convergence.</div>
-      <canvas id="rmse-canvas"></canvas>
+        <!-- Categories -->
+        <p class="filter-label">Categories</p>
+        <a href="{{ url_for('index') }}"
+           class="filter-chip {% if not selected_category %}active{% endif %}">
+          All Products
+          <span class="chip-count">{{ total_products }}</span>
+        </a>
+        {% for cat in categories %}
+        <a href="{{ url_for('index', category=cat, search=search) }}"
+           class="filter-chip {% if selected_category == cat %}active{% endif %}">
+          {{ cat }}
+        </a>
+        {% endfor %}
+      </div>
     </div>
-    <div class="rmse-badge" id="rmse-badge"></div>
-  </div>
+    <!-- /SIDEBAR -->
 
-  <!-- Results -->
-  <div class="res-grid" id="res-grid" style="display:none">
+    <!-- ---- PRODUCTS GRID ---- -->
+    <div class="col-lg-9">
 
-    <!-- Recommendations -->
-    <div class="card">
-      <h2>🎯 Top Recommendations</h2>
-      <table id="recs-tbl">
-        <thead><tr>
-          <th>#</th><th>Product</th><th>Category</th>
-          <th>Price (€)</th><th>Predicted Score</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
+      <!-- Results header -->
+      <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+          <h5 class="mb-0 fw-semibold">
+            {% if selected_category %}{{ selected_category }}
+            {% elif search %}Results for "{{ search }}"
+            {% else %}All Products{% endif %}
+          </h5>
+          <small class="text-muted">{{ total_products }} products found</small>
+        </div>
+        {% if selected_category or search %}
+        <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-x me-1"></i>Clear filters
+        </a>
+        {% endif %}
+      </div>
+
+      <!-- Product cards grid -->
+      <div class="row row-cols-2 row-cols-md-3 g-3">
+        {% for p in products %}
+        <div class="col">
+          <a href="{{ url_for('product_detail', product_id=p.product_id) }}"
+             class="product-card-link">
+            <div class="product-card">
+
+              <!-- Product image area -->
+              <div class="product-img" style="background: linear-gradient(135deg, {{ p.cat_color }}33, {{ p.cat_color }}88);">
+                <span class="product-emoji">{{ p.emoji }}</span>
+                <span class="product-badge-cat">{{ p.category }}</span>
+              </div>
+
+              <!-- Card body -->
+              <div class="product-body">
+                <p class="product-name">{{ p.name }}</p>
+
+                <!-- Stars -->
+                <div class="product-stars">
+                  {% set full = p.avg_rating | int %}
+                  {% for i in range(full) %}<i class="bi bi-star-fill"></i>{% endfor %}
+                  {% if p.avg_rating - full >= 0.5 %}<i class="bi bi-star-half"></i>{% endif %}
+                  {% for i in range(5 - full - (1 if p.avg_rating - full >= 0.5 else 0)) %}<i class="bi bi-star"></i>{% endfor %}
+                  <span class="rating-val">{{ p.avg_rating }}</span>
+                  <span class="rating-count">({{ p.rating_count }})</span>
+                </div>
+
+                <!-- Price + purchases -->
+                <div class="product-footer">
+                  <span class="product-price">€{{ "%.2f"|format(p.price) }}</span>
+                  <span class="product-purchases">
+                    <i class="bi bi-bag-check"></i> {{ p.purchase_count }}
+                  </span>
+                </div>
+              </div>
+
+            </div>
+          </a>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5 text-muted">
+          <i class="bi bi-search display-4"></i>
+          <p class="mt-2">No products found.</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Pagination -->
+      {% if total_pages > 1 %}
+      <nav class="mt-4 d-flex justify-content-center">
+        <ul class="pagination pagination-sm">
+          <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('index', page=current_page-1, category=selected_category, search=search) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% for p in range(1, total_pages+1) %}
+            {% if p == current_page or (p >= current_page-2 and p <= current_page+2) or p == 1 or p == total_pages %}
+            <li class="page-item {% if p == current_page %}active{% endif %}">
+              <a class="page-link" href="{{ url_for('index', page=p, category=selected_category, search=search) }}">{{ p }}</a>
+            </li>
+            {% elif p == current_page-3 or p == current_page+3 %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('index', page=current_page+1, category=selected_category, search=search) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      {% endif %}
+
     </div>
+    <!-- /PRODUCTS GRID -->
 
-    <!-- User's existing ratings -->
-    <div class="card">
-      <h2>⭐ User's Known Ratings</h2>
-      <table id="rated-tbl">
-        <thead><tr>
-          <th>Product</th><th>Category</th><th>Price (€)</th><th>Rating</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
   </div>
+</div>
 
-  <!-- Learned Q values (tag affinities) -->
-  <div class="card" id="q-card" style="display:none">
-    <h2>🧠 Learned Q Values — User's Tag Affinities</h2>
-    <p style="font-size:.8rem;color:#7a8fa6;margin-bottom:12px">
-      These are the GA-optimised values of Q[user] — how much this user
-      "aligns" with each tag dimension. Higher = stronger affinity.
-    </p>
-    <table id="q-tbl">
-      <thead><tr><th>Tag Dimension</th><th>Affinity (Q value)</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-</div><!-- .right -->
-</main>
-
-<script>
-/* ── Helpers ──────────────────────────────────────────────────────── */
-function stars(r){
-  const f=Math.round(r); return '★'.repeat(f)+'☆'.repeat(5-f);
-}
-
-/* ── RMSE Chart (Canvas 2D, no library) ─────────────────────────── */
-function drawChart(history){
-  const canvas=document.getElementById('rmse-canvas');
-  const W=canvas.offsetWidth||700, H=canvas.offsetHeight||210;
-  canvas.width=W; canvas.height=H;
-  const ctx=canvas.getContext('2d');
-  const PAD={t:14,r:18,b:38,l:56};
-  const pw=W-PAD.l-PAD.r, ph=H-PAD.t-PAD.b;
-
-  const minV=Math.min(...history), maxV=Math.max(...history);
-  const rng=maxV-minV||0.001;
-
-  ctx.clearRect(0,0,W,H);
-
-  /* Grid + Y labels */
-  ctx.strokeStyle='#e3eaf4'; ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){
-    const y=PAD.t+(ph/4)*i;
-    ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(PAD.l+pw,y); ctx.stroke();
-    ctx.fillStyle='#9aacc0'; ctx.font='11px Segoe UI,sans-serif';
-    ctx.textAlign='right';
-    ctx.fillText((maxV-(rng/4)*i).toFixed(3), PAD.l-6, y+4);
-  }
-
-  /* X labels */
-  const step=Math.max(1,Math.ceil(history.length/7));
-  ctx.textAlign='center'; ctx.fillStyle='#9aacc0';
-  for(let i=0;i<history.length;i+=step){
-    const x=PAD.l+(i/(history.length-1))*pw;
-    ctx.fillText(i+1, x, H-PAD.b+16);
-  }
-  ctx.fillText('Generation', PAD.l+pw/2, H-4);
-
-  /* Gradient fill */
-  const grad=ctx.createLinearGradient(0,PAD.t,0,PAD.t+ph);
-  grad.addColorStop(0,'rgba(26,74,126,.22)');
-  grad.addColorStop(1,'rgba(26,74,126,.02)');
-  ctx.beginPath();
-  history.forEach((v,i)=>{
-    const x=PAD.l+(i/(history.length-1))*pw;
-    const y=PAD.t+(1-(v-minV)/rng)*ph;
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  });
-  ctx.lineTo(PAD.l+pw,PAD.t+ph);
-  ctx.lineTo(PAD.l,PAD.t+ph);
-  ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
-
-  /* Line */
-  ctx.beginPath();
-  ctx.strokeStyle='#1a4a7e'; ctx.lineWidth=2.5; ctx.lineJoin='round';
-  history.forEach((v,i)=>{
-    const x=PAD.l+(i/(history.length-1))*pw;
-    const y=PAD.t+(1-(v-minV)/rng)*ph;
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  });
-  ctx.stroke();
-
-  /* Last dot */
-  const lx=PAD.l+pw;
-  const ly=PAD.t+(1-(history[history.length-1]-minV)/rng)*ph;
-  ctx.beginPath(); ctx.arc(lx,ly,5,0,Math.PI*2);
-  ctx.fillStyle='#1a4a7e'; ctx.fill();
-}
-
-/* ── Fill tables ─────────────────────────────────────────────────── */
-function fillRecs(recs){
-  const tb=document.querySelector('#recs-tbl tbody');
-  tb.innerHTML='';
-  const maxS=recs.length?Math.max(...recs.map(r=>r.predicted)):1;
-  recs.forEach((r,i)=>{
-    const pct=Math.min(100,(r.predicted/(maxS||1))*100);
-    tb.insertAdjacentHTML('beforeend',`
-      <tr>
-        <td><strong>${i+1}</strong></td>
-        <td>Product ${r.product_id}</td>
-        <td><span class="badge ${r.category}">${r.category}</span></td>
-        <td>${r.price.toFixed(2)} €</td>
-        <td>
-          <div class="bar-wrap">
-            <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
-            <span class="bar-val">${r.predicted.toFixed(3)}</span>
-          </div>
-        </td>
-      </tr>`);
-  });
-}
-
-function fillRated(ratings){
-  const tb=document.querySelector('#rated-tbl tbody');
-  tb.innerHTML='';
-  if(!ratings.length){
-    tb.innerHTML='<tr><td colspan="4" style="color:#b0bec8;text-align:center">No ratings found.</td></tr>';
-    return;
-  }
-  ratings.forEach(r=>{
-    tb.insertAdjacentHTML('beforeend',`
-      <tr>
-        <td>Product ${r.product_id}</td>
-        <td><span class="badge ${r.category}">${r.category}</span></td>
-        <td>${r.price.toFixed(2)} €</td>
-        <td><span class="stars">${stars(r.rating)}</span> ${r.rating}</td>
-      </tr>`);
-  });
-}
-
-function fillQTable(qvals){
-  const tb=document.querySelector('#q-tbl tbody');
-  tb.innerHTML='';
-  const maxA=Math.max(...qvals.map(q=>q.affinity));
-  qvals.forEach(q=>{
-    const pct=Math.min(100,(q.affinity/(maxA||1))*100);
-    tb.insertAdjacentHTML('beforeend',`
-      <tr>
-        <td><strong>${q.tag}</strong></td>
-        <td>
-          <div class="bar-wrap">
-            <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
-            <span class="bar-val">${q.affinity.toFixed(4)}</span>
-          </div>
-        </td>
-      </tr>`);
-  });
-}
-
-/* ── Main: call /run ─────────────────────────────────────────────── */
-async function runGA(){
-  const btn=document.getElementById('run-btn');
-  const spinner=document.getElementById('spinner');
-  const errBox=document.getElementById('err-box');
-  const resGrid=document.getElementById('res-grid');
-  const qCard=document.getElementById('q-card');
-
-  btn.disabled=true;
-  spinner.style.display='block';
-  errBox.style.display='none';
-  resGrid.style.display='none';
-  qCard.style.display='none';
-
-  const payload={
-    user_id: parseInt(document.getElementById('user-id').value),
-    top_n:   parseInt(document.getElementById('top-n').value),
-    Np:      parseInt(document.getElementById('np').value),
-    Ni:      parseInt(document.getElementById('ni').value),
-    Pc:      parseFloat(document.getElementById('pc').value),
-    Pm:      parseFloat(document.getElementById('pm').value),
-    seed:    parseInt(document.getElementById('seed').value),
-  };
-
-  try{
-    const resp=await fetch('/run',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    if(!resp.ok) throw new Error(`Server error ${resp.status}`);
-    const data=await resp.json();
-
-    /* RMSE Chart */
-    const canvas=document.getElementById('rmse-canvas');
-    document.getElementById('chart-placeholder').style.display='none';
-    canvas.style.display='block';
-    const badge=document.getElementById('rmse-badge');
-    badge.style.display='inline-block';
-    badge.textContent=`Final RMSE: ${data.final_rmse.toFixed(5)}`;
-    drawChart(data.rmse_history);
-
-    /* Tables */
-    fillRecs(data.recommendations);
-    fillRated(data.user_ratings);
-    resGrid.style.display='grid';
-
-    /* Q values */
-    if(data.q_values && data.q_values.length){
-      fillQTable(data.q_values);
-      qCard.style.display='block';
-    }
-
-  }catch(e){
-    errBox.textContent='❌ '+e.message;
-    errBox.style.display='block';
-  }finally{
-    btn.disabled=false;
-    spinner.style.display='none';
-  }
-}
-</script>
-
-</body>
-</html>
+{% endblock %}

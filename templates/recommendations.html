@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}AI Recommendations — User #{{ user_id }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+  <!-- Page header -->
+  <div class="rec-header mb-4">
+    <div>
+      <span class="rec-label"><i class="bi bi-stars"></i> AI Recommendations</span>
+      <h2 class="fw-bold mb-1">Personalised Picks for You</h2>
+      <p class="text-muted mb-0">
+        User #{{ user.user_id }}
+        {% if user.age %} · Age {{ user.age }}{% endif %}
+        {% if user.location %} · {{ user.location }}{% endif %}
+      </p>
+    </div>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Back to Shop
+    </a>
+  </div>
+
+  <!-- ====================== GA INFO BANNER ====================== -->
+  <div class="ga-banner mb-4">
+    <div class="ga-banner-icon">🧬</div>
+    <div class="ga-banner-text">
+      <strong>Genetic Algorithm at Work</strong>
+      <p class="mb-0 small">
+        The GA evolves a weight vector <code>[w_rating, w_viewed, w_clicked, w_purchased]</code>
+        over <strong>30 generations</strong> (population = 20) to find which signals matter
+        most for <em>your</em> behaviour.  The best chromosome is used to score and rank
+        every product — giving you truly personalised recommendations.
+      </p>
+    </div>
+    <div class="ga-banner-paper">
+      <i class="bi bi-journal-text"></i>
+      <span>Ji, Chen & Xiong (2024)</span>
+    </div>
+  </div>
+
+  <!-- ====================== LOADING STATE ====================== -->
+  <div id="loadingBlock" class="text-center py-5">
+    <div class="ga-loading-ring mb-3"></div>
+    <h5 class="fw-semibold">Running Genetic Algorithm…</h5>
+    <p class="text-muted small">Evolving 20 individuals × 30 generations to find your perfect picks.</p>
+    <div class="ga-progress-bar-wrap">
+      <div id="gaProgressBar" class="ga-progress-bar-inner"></div>
+    </div>
+    <p class="text-muted small mt-2" id="genCounter">Generation 0 / 30</p>
+  </div>
+
+  <!-- ====================== RESULTS (hidden until loaded) ====================== -->
+  <div id="resultsBlock" style="display:none">
+
+    <!-- ---- RECOMMENDED PRODUCTS GRID ---- -->
+    <h4 class="fw-semibold mb-3">
+      <i class="bi bi-stars text-primary me-1"></i> Top Picks For You
+    </h4>
+    <div id="recGrid" class="row row-cols-2 row-cols-md-4 g-3 mb-5"></div>
+
+    <!-- ---- GA VISUALISATIONS ---- -->
+    <div class="row g-4 mb-4">
+
+      <!-- Fitness evolution chart -->
+      <div class="col-lg-7">
+        <div class="viz-card">
+          <h6 class="viz-title">
+            <i class="bi bi-graph-up-arrow text-primary me-1"></i>
+            Fitness Evolution (per generation)
+          </h6>
+          <p class="text-muted small">Shows how the GA improves the best solution over generations.</p>
+          <canvas id="fitnessChart" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Weight distribution chart -->
+      <div class="col-lg-5">
+        <div class="viz-card">
+          <h6 class="viz-title">
+            <i class="bi bi-bar-chart text-primary me-1"></i>
+            Evolved Signal Weights
+          </h6>
+          <p class="text-muted small">The optimal importance given to each behaviour signal.</p>
+          <canvas id="weightsChart" height="200"></canvas>
+
+          <!-- Weight pills -->
+          <div id="weightPills" class="d-flex flex-wrap gap-2 mt-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Algorithm parameters panel -->
+    <div class="algo-params-card">
+      <h6 class="fw-semibold mb-3"><i class="bi bi-gear me-1"></i> GA Parameters Used</h6>
+      <div class="row row-cols-2 row-cols-md-4 g-3 text-center">
+        <div class="col">
+          <div class="param-box">
+            <strong class="d-block">20</strong>
+            <span>Population size</span>
+          </div>
+        </div>
+        <div class="col">
+          <div class="param-box">
+            <strong class="d-block">30</strong>
+            <span>Generations</span>
+          </div>
+        </div>
+        <div class="col">
+          <div class="param-box">
+            <strong class="d-block">0.80</strong>
+            <span>Crossover rate (Pc)</span>
+          </div>
+        </div>
+        <div class="col">
+          <div class="param-box">
+            <strong class="d-block">0.10</strong>
+            <span>Mutation rate (Pm)</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-muted small mt-3 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        Chromosome = <code>[w_rating, w_viewed, w_clicked, w_purchased]</code> — 4 genes, normalised to sum = 1.
+        Selection: Tournament (k=3).  Elitism: top-1 individual carried forward each generation.
+      </p>
+    </div>
+
+  </div>
+  <!-- /results -->
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Current user ID injected from Flask
+var USER_ID = {{ user_id }};
+
+// Progress bar animation while GA runs on server
+var progressPct = 0;
+var progressBar = document.getElementById('gaProgressBar');
+var genCounter  = document.getElementById('genCounter');
+
+var ticker = setInterval(function() {
+  progressPct = Math.min(progressPct + 2, 95);
+  progressBar.style.width = progressPct + '%';
+    var gen = Math.round((progressPct / 100) * 30);
+  genCounter.textContent = 'Generation ' + gen + ' / 30';
+}, 80);
+
+// Fetch personalised recommendations from the GA API
+fetch('/api/recommendations/' + USER_ID)
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    clearInterval(ticker);
+    progressBar.style.width = '100%';
+    genCounter.textContent = 'Generation 30 / 30  \u2713';
+
+    setTimeout(function() {
+      document.getElementById('loadingBlock').style.display = 'none';
+      document.getElementById('resultsBlock').style.display = 'block';
+      renderProducts(data.products);
+      renderFitnessChart(data.fitness_history);
+      renderWeightsChart(data.weights);
+    }, 400);
+  })
+  .catch(function() {
+    document.getElementById('loadingBlock').innerHTML =
+      '<div class="alert alert-danger">Could not load recommendations. Please try again.</div>';
+  });
+
+
+// Build star icons for a numeric rating value (0–5)
+function starHtml(rating) {
+  var html = '';
+  var r = rating || 0;
+  var full = Math.floor(r);
+  var half = (r - full) >= 0.5;
+  var empty = 5 - full - (half ? 1 : 0);
+
+  for (var i = 0; i < full; i++) {
+    html += '<i class="bi bi-star-fill"></i>';
+  }
+  if (half) {
+    html += '<i class="bi bi-star-half"></i>';
+  }
+  for (var j = 0; j < empty; j++) {
+    html += '<i class="bi bi-star"></i>';
+  }
+  return html;
+}
+
+
+// Render recommended product cards into the grid
+function renderProducts(products) {
+  var grid = document.getElementById('recGrid');
+
+  if (!products || !products.length) {
+    grid.innerHTML = '<div class="col-12 text-center text-muted py-4">No recommendations available for this user.</div>';
+    return;
+  }
+
+  products.forEach(function(p, idx) {
+    var col  = document.createElement('div');
+    col.className = 'col card-appear';
+    col.style.animationDelay = (idx * 60) + 'ms';
+
+    // Card wrapper (link)
+    var link = document.createElement('a');
+    link.href = '/product/' + p.product_id;
+    link.className = 'product-card-link';
+
+    // Card
+    var card = document.createElement('div');
+    card.className = 'product-card rec-card';
+
+    // Rank badge
+    var rank = document.createElement('div');
+    rank.className = 'rec-rank-badge';
+    rank.textContent = '#' + (idx + 1);
+
+    // Image area
+    var imgDiv = document.createElement('div');
+    imgDiv.className = 'product-img';
+    imgDiv.style.background = 'linear-gradient(135deg,' + p.cat_color + '33,' + p.cat_color + '88)';
+
+    var emoji = document.createElement('span');
+    emoji.className = 'product-emoji';
+    emoji.textContent = p.emoji;
+
+    var aiTag = document.createElement('span');
+    aiTag.className = 'ai-tag';
+    aiTag.innerHTML = '<i class="bi bi-stars"></i> AI Pick';
+
+    imgDiv.appendChild(emoji);
+    imgDiv.appendChild(aiTag);
+
+    // Body
+    var body = document.createElement('div');
+    body.className = 'product-body';
+
+    var name = document.createElement('p');
+    name.className = 'product-name';
+    name.textContent = p.name;
+
+    var stars = document.createElement('div');
+    stars.className = 'product-stars';
+    stars.innerHTML = starHtml(p.avg_rating) +
+      '<span class="rating-val">' + p.avg_rating + '</span>';
+
+    var footer = document.createElement('div');
+    footer.className = 'product-footer';
+
+    var price = document.createElement('span');
+    price.className = 'product-price';
+    price.textContent = '\u20ac' + parseFloat(p.price).toFixed(2);
+
+    var purchases = document.createElement('span');
+    purchases.className = 'product-purchases';
+    purchases.innerHTML = '<i class="bi bi-bag-check"></i> ' + p.purchase_count;
+
+    footer.appendChild(price);
+    footer.appendChild(purchases);
+    body.appendChild(name);
+    body.appendChild(stars);
+    body.appendChild(footer);
+
+    card.appendChild(rank);
+    card.appendChild(imgDiv);
+    card.appendChild(body);
+    link.appendChild(card);
+    col.appendChild(link);
+    grid.appendChild(col);
+  });
+}
+
+
+// Line chart: fitness value per GA generation
+function renderFitnessChart(history) {
+  var ctx = document.getElementById('fitnessChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: history.map(function(_, i) { return i + 1; }),
+      datasets: [{
+        label: 'Best Fitness',
+        data: history,
+        borderColor: '#5C6BC0',
+        backgroundColor: 'rgba(92,107,192,0.12)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        borderWidth: 2.5
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'Generation' } },
+        y: { title: { display: true, text: 'Fitness Score' } }
+      }
+    }
+  });
+}
+
+
+// Bar chart: evolved signal weights
+function renderWeightsChart(weights) {
+  var labels = Object.keys(weights);
+  var values = Object.values(weights);
+  var colors = ['#5C6BC0', '#42A5F5', '#66BB6A', '#FFA726'];
+
+  var ctx = document.getElementById('weightsChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { max: 1, title: { display: true, text: 'Weight' } }
+      }
+    }
+  });
+
+  // Weight percentage pills
+  var pillsContainer = document.getElementById('weightPills');
+  labels.forEach(function(lbl, i) {
+    var pill = document.createElement('span');
+    pill.className = 'weight-pill';
+    pill.style.background = colors[i] + '22';
+    pill.style.color = colors[i];
+    pill.style.border = '1px solid ' + colors[i] + '55';
+    pill.innerHTML = '<strong>' + (values[i] * 100).toFixed(1) + '%</strong> ' + lbl.replace(' Weight', '');
+    pillsContainer.appendChild(pill);
+  });
+}
+</script>
+{% endblock %}

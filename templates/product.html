@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} — SmartAIShop{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+
+  <!-- Breadcrumb -->
+  <nav class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('index', category=product.category) }}">{{ product.category }}</a>
+      </li>
+      <li class="breadcrumb-item active">{{ product.name }}</li>
+    </ol>
+  </nav>
+
+  <div class="row g-5">
+
+    <!-- ---- Product image ---- -->
+    <div class="col-lg-5">
+      <div class="product-detail-img" style="background: linear-gradient(135deg, {{ product.cat_color }}22, {{ product.cat_color }}66);">
+        <span class="detail-emoji">{{ product.emoji }}</span>
+        <span class="detail-category-badge">{{ product.category }}</span>
+      </div>
+    </div>
+
+    <!-- ---- Product info ---- -->
+    <div class="col-lg-7">
+      <h1 class="product-detail-title">{{ product.name }}</h1>
+      <p class="text-muted small mb-2">Product ID: #{{ product.product_id }}</p>
+
+      <!-- Stars + rating count -->
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <div class="stars-lg">
+          {% set full = product.avg_rating | int %}
+          {% for i in range(full) %}<i class="bi bi-star-fill text-warning"></i>{% endfor %}
+          {% if product.avg_rating - full >= 0.5 %}<i class="bi bi-star-half text-warning"></i>{% endif %}
+          {% for i in range(5 - full - (1 if product.avg_rating - full >= 0.5 else 0)) %}<i class="bi bi-star text-warning"></i>{% endfor %}
+        </div>
+        <strong>{{ product.avg_rating }}</strong>
+        <span class="text-muted">({{ product.rating_count }} reviews)</span>
+      </div>
+
+      <!-- Price -->
+      <div class="detail-price mb-4">€{{ "%.2f"|format(product.price) }}</div>
+
+      <!-- Stats row -->
+      <div class="stat-row mb-4">
+        <div class="stat-pill">
+          <i class="bi bi-eye"></i>
+          <span><strong>{{ product.view_count }}</strong> views</span>
+        </div>
+        <div class="stat-pill">
+          <i class="bi bi-bag-check"></i>
+          <span><strong>{{ product.purchase_count }}</strong> purchases</span>
+        </div>
+        <div class="stat-pill">
+          <i class="bi bi-star"></i>
+          <span><strong>{{ product.rating_count }}</strong> ratings</span>
+        </div>
+      </div>
+
+      <!-- CTA buttons -->
+      <div class="d-flex gap-3 flex-wrap mb-4">
+        <button class="btn btn-primary btn-lg px-5">
+          <i class="bi bi-cart-plus me-1"></i> Add to Cart
+        </button>
+        {% if current_user_id %}
+        <a href="{{ url_for('recommendations', user_id=current_user_id) }}"
+           class="btn btn-outline-primary btn-lg">
+          <i class="bi bi-stars me-1"></i> My AI Picks
+        </a>
+        {% else %}
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-lg">
+          <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+        {% endif %}
+      </div>
+
+      <!-- Rating distribution -->
+      {% if product.rating_count > 0 %}
+      <div class="rating-dist-card">
+        <h6 class="mb-3 fw-semibold">Rating Distribution</h6>
+        {% for star in [5,4,3,2,1] %}
+        {% set cnt = star_dist[star] %}
+        {% set pct = ((cnt / product.rating_count) * 100) | round | int %}
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="small" style="width:12px">{{ star }}</span>
+          <i class="bi bi-star-fill text-warning small"></i>
+          <div class="progress flex-grow-1" style="height:8px">
+            <div class="progress-bar bg-warning" style="width:{{ pct }}%"></div>
+          </div>
+          <span class="small text-muted" style="width:28px">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- ======================== SIMILAR PRODUCTS ======================== -->
+  {% if similar %}
+  <hr class="my-5"/>
+  <h4 class="fw-semibold mb-4">Similar Products</h4>
+  <div class="row row-cols-2 row-cols-md-4 g-3">
+    {% for p in similar %}
+    <div class="col">
+      <a href="{{ url_for('product_detail', product_id=p.product_id) }}" class="product-card-link">
+        <div class="product-card">
+          <div class="product-img" style="background: linear-gradient(135deg, {{ p.cat_color }}33, {{ p.cat_color }}88);">
+            <span class="product-emoji">{{ p.emoji }}</span>
+          </div>
+          <div class="product-body">
+            <p class="product-name">{{ p.name }}</p>
+            <div class="product-footer">
+              <span class="product-price">€{{ "%.2f"|format(p.price) }}</span>
+              <span class="product-purchases">
+                <i class="bi bi-star-fill text-warning"></i> {{ p.avg_rating }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
